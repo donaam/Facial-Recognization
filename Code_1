@@ -1,0 +1,85 @@
+import face_recognition
+import cv2
+import numpy as np
+
+# Open the video capture device
+video_capture = cv2.VideoCapture(0)
+
+# Create a list of known face encodings and names
+known_face_encodings = []
+known_face_names = []
+
+# For each person you want to recognize, add their face encoding and name to the lists
+for name in ["sarthak"]:
+    image = face_recognition.load_image_file(f"{name}.jpg")
+    encoding = face_recognition.face_encodings(image)[0]
+    known_face_encodings.append(encoding)
+    known_face_names.append(name.capitalize())
+
+# Initialize variables
+face_locations = []
+face_encodings = []
+face_names = []
+
+# Loop over the frames of the video
+while True:
+    # Read the next frame
+    ret, frame = video_capture.read()
+
+    # Resize the frame to 25% of its original size
+    small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
+
+    # Convert the frame to RGB color
+    rgb_small_frame = small_frame[:, :, ::-1]
+
+    # Find all the faces in the frame
+    face_locations = face_recognition.face_locations(rgb_small_frame)
+
+    # If there are any faces in the frame,
+    if len(face_locations) > 0:
+        # Get the face encodings for each face
+        face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
+
+        # Create a list of names for each face
+        face_names = []
+        for face_encoding in face_encodings:
+            # Compare the face encoding to the known face encodings
+            matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
+
+            # If the face is a match, get the name of the person
+            name = "Unknown"
+            face_distances = face_recognition.face_distance(known_face_encodings, face_encoding)
+            best_match_index = np.argmin(face_distances)
+            if matches[best_match_index]:
+                name = known_face_names[best_match_index]
+
+            # Add the name to the list of face names
+            face_names.append(name)
+
+    # Draw a rectangle around each face and display the name below it
+    for (top, right, bottom, left), name in zip(face_locations, face_names):
+        # Scale the face coordinates back to the original size of the frame
+        top *= 4
+        right *= 4
+        bottom *= 4
+        left *= 4
+
+        # Draw a rectangle around the face
+        cv2.rectangle(frame, (left, top), (right, bottom), (255, 255, 255), 2)
+
+        # Write the name of the person below the face
+        font = cv2.FONT_HERSHEY_COMPLEX
+        cv2.putText(frame, name, (left + 25, bottom + 25), font, 0.6, (255, 255, 255), 1)
+
+    # Display the frame
+    cv2.imshow('Video', frame)
+
+    # If the user presses the `q` key, stop the loop
+    if cv2.waitKey(1) == ord('q'):
+        break
+
+# Release the video capture device
+video_capture.release()
+
+# Close all open windows
+cv2.destroyAllWindows()
